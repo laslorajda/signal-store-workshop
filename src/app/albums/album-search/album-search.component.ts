@@ -51,8 +51,8 @@ export default class AlbumSearchComponent implements OnInit {
     exhaustMap(() => this.albumService.getAll().pipe(
       tapResponse({
         next: albums => patchState(this.state, { albums, showProgress: false }),
-        error: _ => {
-          this.snackBar.open('Failed to load albums', 'Dismiss');
+        error: (error: { message: string }) => {
+          this.snackBar.open(error.message, 'Dismiss', { duration: 3000 });
           patchState(this.state, { showProgress: false });
         }
       })))));
