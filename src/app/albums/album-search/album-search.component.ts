@@ -1,15 +1,7 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ProgressBarComponent } from '@/shared/ui/progress-bar.component';
-import { SortOrder } from '@/shared/models/sort-order.model';
-import { Album, searchAlbums, sortAlbums } from '@/albums/album.model';
 import { AlbumFilterComponent } from './album-filter/album-filter.component';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { AlbumListComponent } from './album-list/album-list.component';
-import { patchState, signalState } from '@ngrx/signals';
-import { AlbumsService } from '../albums.service';
-import { exhaustMap, pipe, tap } from 'rxjs';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { tapResponse } from '@ngrx/operators';
 import { albumSearchStore } from './album-search.store';
 
 @Component({
