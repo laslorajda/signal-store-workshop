@@ -1,15 +1,13 @@
-import { SortOrder, toSortOrder } from "@/shared/models/sort-order.model";
-import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from "@ngrx/signals";
+import { toSortOrder } from "@/shared/models/sort-order.model";
+import { signalStore, withComputed, withHooks, withMethods } from "@ngrx/signals";
 import { Album, searchAlbums, sortAlbums } from "../album.model";
 import { computed, inject } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { AlbumsService } from "../albums.service";
 import { rxMethod } from "@ngrx/signals/rxjs-interop";
-import { exhaustMap, filter, pipe, tap } from "rxjs";
-import { tapResponse } from "@ngrx/operators";
-import { setAllEntities, withEntities } from "@ngrx/signals/entities";
-import { setError, setPending, setSuccess, withRequestStatus } from "@/shared/state/route/request-status.feature";
+import { filter, pipe, tap } from "rxjs";
+import { withEntities } from "@ngrx/signals/entities";
 import { withQueryParams } from "@/shared/state/route/query-params.feature";
+import { AlbumStore } from "../album.store";
 
 export const albumSearchStore = signalStore(
     withQueryParams({
@@ -17,35 +15,26 @@ export const albumSearchStore = signalStore(
         order: toSortOrder
     }),
     withEntities<Album>(),
-    withRequestStatus(),
-    withComputed(store => {
-        const filteredAlbums = computed(() => sortAlbums(searchAlbums(store.entities(), store.query()), store.order()));
+    withComputed(({ query, order }, albumStore = inject(AlbumStore)) => {
+        const filteredAlbums = computed(() => sortAlbums(searchAlbums(albumStore.entities(), query()), order()));
         return {
-            showSpinner: computed(() => store.isPending() && store.entities().length === 0),
+            showSpinner: computed(() => albumStore.isPending() && albumStore.entities().length === 0),
             filteredAlbums,
             totalAlbums: computed(() => filteredAlbums().length)
         }
     }),
-    withMethods((store, albumService = inject(AlbumsService), snackBar = inject(MatSnackBar)) => ({
-        loadAllAlbums: rxMethod<void>(
-            pipe(
-                tap(_ => patchState(store, setPending())),
-                exhaustMap(() => albumService.getAll().pipe(
-                    tapResponse({
-                        next: albums => patchState(store, setAllEntities(albums), setSuccess()),
-                        error: (error: { message: string }) => patchState(store, setError(error.message))
-                    })
-                )))),
+    withMethods((_, snackBar = inject(MatSnackBar)) => ({
         notifyOnError: rxMethod<string | undefined>(
             pipe(
                 filter(Boolean),
-                tap(message => snackBar.open(message, 'Dismiss', { duration: 5000 }))
-            ))
+                tap((message) => snackBar.open(message!, 'Close', { duration: 5000 }))
+            )
+        )
     })),
     withHooks({
-        onInit({ loadAllAlbums, notifyOnError, error }) {
-            loadAllAlbums();
-            notifyOnError(error);
+        onInit({ notifyOnError }, albumStore = inject(AlbumStore)) {
+            albumStore.loadAllAlbums();
+            notifyOnError(albumStore.error);
         }
     })
 )
