@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { ProgressBarComponent } from '@/shared/ui/progress-bar.component';
 import { SortOrder } from '@/shared/models/sort-order.model';
 import { Album, searchAlbums, sortAlbums } from '@/albums/album.model';
@@ -30,9 +30,7 @@ import { AlbumsService } from '../albums.service';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class AlbumSearchComponent {
-  readonly snackBar = inject(MatSnackBar);
-
+export default class AlbumSearchComponent implements OnInit {
   readonly state = signalState({
     albums: [] as Album[],
     query: '',
@@ -43,9 +41,12 @@ export default class AlbumSearchComponent {
   readonly filteredAlbums = computed(() => sortAlbums(searchAlbums(this.state.albums(), this.state.query()), this.state.order()));
   readonly totalAlbums = computed(() => this.filteredAlbums().length);
 
-  constructor(albumService: AlbumsService) {
+  constructor(private readonly albumService: AlbumsService, private readonly snackBar: MatSnackBar) {
+  }
+
+  ngOnInit(): void {
     patchState(this.state, { showProgress: true });
-    albumService.getAll().subscribe({
+    this.albumService.getAll().subscribe({
       next: albums => patchState(this.state, { albums, showProgress: false }),
       error: () => {
         this.snackBar.open('Failed to load albums', 'Dismiss');
