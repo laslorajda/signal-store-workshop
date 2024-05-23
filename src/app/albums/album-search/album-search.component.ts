@@ -39,7 +39,7 @@ export default class AlbumSearchComponent {
     order: 'asc' as SortOrder,
     showProgress: false
   });
-  readonly showSpinner = computed(() => this.state.showProgress() && this.totalAlbums() === 0);
+  readonly showSpinner = computed(() => this.state.showProgress() && this.state.albums().length === 0);
   readonly filteredAlbums = computed(() => sortAlbums(searchAlbums(this.state.albums(), this.state.query()), this.state.order()));
   readonly totalAlbums = computed(() => this.filteredAlbums().length);
 
