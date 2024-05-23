@@ -7,6 +7,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AlbumListComponent } from './album-list/album-list.component';
 import { patchState, signalState } from '@ngrx/signals';
 import { AlbumsService } from '../albums.service';
+import { exhaustMap, pipe, tap } from 'rxjs';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import { tapResponse } from '@ngrx/operators';
 
 @Component({
   selector: 'ngrx-album-search',
@@ -31,6 +34,9 @@ import { AlbumsService } from '../albums.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class AlbumSearchComponent implements OnInit {
+  readonly albumService = inject(AlbumsService);
+  readonly snackBar = inject(MatSnackBar);
+
   readonly state = signalState({
     albums: [] as Album[],
     query: '',
@@ -40,19 +46,19 @@ export default class AlbumSearchComponent implements OnInit {
   readonly showSpinner = computed(() => this.state.showProgress() && this.state.albums().length === 0);
   readonly filteredAlbums = computed(() => sortAlbums(searchAlbums(this.state.albums(), this.state.query()), this.state.order()));
   readonly totalAlbums = computed(() => this.filteredAlbums().length);
-
-  constructor(private readonly albumService: AlbumsService, private readonly snackBar: MatSnackBar) {
-  }
+  readonly loadAllAlbums = rxMethod<void>(pipe(
+    tap(_ => patchState(this.state, { showProgress: true })),
+    exhaustMap(() => this.albumService.getAll().pipe(
+      tapResponse({
+        next: albums => patchState(this.state, { albums, showProgress: false }),
+        error: _ => {
+          this.snackBar.open('Failed to load albums', 'Dismiss');
+          patchState(this.state, { showProgress: false });
+        }
+      })))));
 
   ngOnInit(): void {
-    patchState(this.state, { showProgress: true });
-    this.albumService.getAll().subscribe({
-      next: albums => patchState(this.state, { albums, showProgress: false }),
-      error: () => {
-        this.snackBar.open('Failed to load albums', 'Dismiss');
-        patchState(this.state, { showProgress: false });
-      }
-    });
+    this.loadAllAlbums();
   }
 
   updateQuery(query: string): void {
