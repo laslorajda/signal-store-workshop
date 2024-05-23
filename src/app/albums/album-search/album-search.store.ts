@@ -1,4 +1,4 @@
-import { SortOrder } from "@/shared/models/sort-order.model";
+import { SortOrder, toSortOrder } from "@/shared/models/sort-order.model";
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from "@ngrx/signals";
 import { Album, searchAlbums, sortAlbums } from "../album.model";
 import { computed, inject } from "@angular/core";
@@ -9,11 +9,12 @@ import { exhaustMap, filter, pipe, tap } from "rxjs";
 import { tapResponse } from "@ngrx/operators";
 import { setAllEntities, withEntities } from "@ngrx/signals/entities";
 import { setError, setPending, setSuccess, withRequestStatus } from "@/shared/state/route/request-status.feature";
+import { withQueryParams } from "@/shared/state/route/query-params.feature";
 
 export const albumSearchStore = signalStore(
-    withState({
-        query: '',
-        order: 'asc' as SortOrder,
+    withQueryParams({
+        query: param => param ?? '',
+        order: toSortOrder
     }),
     withEntities<Album>(),
     withRequestStatus(),
@@ -26,17 +27,13 @@ export const albumSearchStore = signalStore(
         }
     }),
     withMethods((store, albumService = inject(AlbumsService), snackBar = inject(MatSnackBar)) => ({
-        updateQuery: (query: string) => patchState(store, { query }),
-        updateOrder: (order: SortOrder) => patchState(store, { order }),
         loadAllAlbums: rxMethod<void>(
             pipe(
                 tap(_ => patchState(store, setPending())),
                 exhaustMap(() => albumService.getAll().pipe(
                     tapResponse({
                         next: albums => patchState(store, setAllEntities(albums), setSuccess()),
-                        error: (error: { message: string }) => {
-                            patchState(store, setError(error.message));
-                        }
+                        error: (error: { message: string }) => patchState(store, setError(error.message))
                     })
                 )))),
         notifyOnError: rxMethod<string | undefined>(
