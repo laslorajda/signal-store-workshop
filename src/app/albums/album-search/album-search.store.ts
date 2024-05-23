@@ -7,18 +7,19 @@ import { AlbumsService } from "../albums.service";
 import { rxMethod } from "@ngrx/signals/rxjs-interop";
 import { exhaustMap, pipe, tap } from "rxjs";
 import { tapResponse } from "@ngrx/operators";
+import { setError, setPending, setSuccess, withRequestStatus } from "@/shared/state/route/request-status.feature";
 
 export const albumSearchStore = signalStore(
     withState({
         albums: [] as Album[],
         query: '',
         order: 'asc' as SortOrder,
-        showProgress: false
     }),
+    withRequestStatus(),
     withComputed(store => {
         const filteredAlbums = computed(() => sortAlbums(searchAlbums(store.albums(), store.query()), store.order()));
         return {
-            showSpinner: computed(() => store.showProgress() && store.albums().length === 0),
+            showSpinner: computed(() => store.isPending() && store.albums().length === 0),
             filteredAlbums,
             totalAlbums: computed(() => filteredAlbums().length)
         }
@@ -28,13 +29,16 @@ export const albumSearchStore = signalStore(
         updateOrder: (order: SortOrder) => patchState(store, { order }),
         loadAllAlbums: rxMethod<void>(
             pipe(
-                tap(_ => patchState(store, { showProgress: true })),
+                tap(_ => patchState(store, setPending())),
                 exhaustMap(() => albumService.getAll().pipe(
                     tapResponse({
-                        next: albums => patchState(store, { albums, showProgress: false }),
+                        next: albums => {
+                            patchState(store, setSuccess())
+                            patchState(store, { albums });
+                        },
                         error: (error: { message: string }) => {
                             snackBar.open(error.message, 'Dismiss', { duration: 3000 });
-                            patchState(store, { showProgress: false });
+                            patchState(store, setError(error.message));
                         }
                     })
                 ))))
