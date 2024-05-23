@@ -10,62 +10,31 @@ import { AlbumsService } from '../albums.service';
 import { exhaustMap, pipe, tap } from 'rxjs';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { tapResponse } from '@ngrx/operators';
+import { albumSearchStore } from './album-search.store';
 
 @Component({
   selector: 'ngrx-album-search',
   standalone: true,
   imports: [ProgressBarComponent, AlbumFilterComponent, AlbumListComponent],
   template: `
-    <ngrx-progress-bar [showProgress]="state.showProgress()" />
+    <ngrx-progress-bar [showProgress]="store.showProgress()" />
 
     <div class="container">
-      <h1>Albums ({{ totalAlbums() }})</h1>
+      <h1>Albums ({{ store.totalAlbums() }})</h1>
 
       <ngrx-album-filter
-        [query]="state.query()"
-        [order]="state.order()"
-        (queryChange)="updateQuery($event)"
-        (orderChange)="updateOrder($event)"
+        [query]="store.query()"
+        [order]="store.order()"
+        (queryChange)="store.updateQuery($event)"
+        (orderChange)="store.updateOrder($event)"
       />
 
-      <ngrx-album-list [albums]="filteredAlbums()" [showSpinner]="showSpinner()" />
+      <ngrx-album-list [albums]="store.filteredAlbums()" [showSpinner]="store.showSpinner()" />
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [albumSearchStore],
 })
-export default class AlbumSearchComponent implements OnInit {
-  readonly albumService = inject(AlbumsService);
-  readonly snackBar = inject(MatSnackBar);
-
-  readonly state = signalState({
-    albums: [] as Album[],
-    query: '',
-    order: 'asc' as SortOrder,
-    showProgress: false
-  });
-  readonly showSpinner = computed(() => this.state.showProgress() && this.state.albums().length === 0);
-  readonly filteredAlbums = computed(() => sortAlbums(searchAlbums(this.state.albums(), this.state.query()), this.state.order()));
-  readonly totalAlbums = computed(() => this.filteredAlbums().length);
-  readonly loadAllAlbums = rxMethod<void>(pipe(
-    tap(_ => patchState(this.state, { showProgress: true })),
-    exhaustMap(() => this.albumService.getAll().pipe(
-      tapResponse({
-        next: albums => patchState(this.state, { albums, showProgress: false }),
-        error: (error: { message: string }) => {
-          this.snackBar.open(error.message, 'Dismiss', { duration: 3000 });
-          patchState(this.state, { showProgress: false });
-        }
-      })))));
-
-  ngOnInit(): void {
-    this.loadAllAlbums();
-  }
-
-  updateQuery(query: string): void {
-    patchState(this.state, { query });
-  }
-
-  updateOrder(order: SortOrder): void {
-    patchState(this.state, { order });
-  }
+export default class AlbumSearchComponent {
+  readonly store = inject(albumSearchStore);
 }
